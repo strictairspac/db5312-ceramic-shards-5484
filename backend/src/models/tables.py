@@ -1,5 +1,5 @@
 from sqlalchemy import (JSON, Column, ForeignKey, Integer, MetaData, String,
-                        Table, Text)
+                        Table, Text, UniqueConstraint)
 
 schema = MetaData()
 users = Table('accounts', schema,
@@ -20,6 +20,9 @@ runs = Table('business_runs', schema,
     Column('status', String(20), nullable=False, index=True),
     Column('owner', String(40), nullable=False),
     Column('attempt_token', String(36)),
+    Column('lease_expires_at', String(32)),
+    Column('plan', JSON),
+    Column('progress', JSON),
     Column('started_at', String(32)),
     Column('finished_at', String(32)),
     Column('created_at', String(32), nullable=False),
@@ -32,6 +35,18 @@ evidence = Table('business_evidence', schema,
     Column('reviewer', String(40)),
     Column('review_note', String(500)),
     Column('reviewed_at', String(32)))
+checkpoints = Table('business_checkpoints', schema,
+    Column('id', Integer, primary_key=True),
+    Column('run_id', ForeignKey('business_runs.id'), nullable=False, index=True),
+    Column('step_index', Integer, nullable=False),
+    Column('batch_id', String(64), nullable=False),
+    Column('source_node', String(64), nullable=False),
+    Column('target_node', String(64), nullable=False),
+    Column('size_bytes', Integer, nullable=False),
+    Column('attempt_token', String(36), nullable=False),
+    Column('confirmed_at', String(32), nullable=False),
+    # Confirmed steps are never rewritten, so replays stay idempotent.
+    UniqueConstraint('run_id', 'step_index', name='uq_checkpoint_run_step'))
 audit = Table('audit_events', schema,
     Column('id', Integer, primary_key=True),
     Column('actor', String(40), nullable=False),

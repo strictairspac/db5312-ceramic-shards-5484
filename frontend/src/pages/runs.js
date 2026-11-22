@@ -11,8 +11,13 @@ export function runsPage(state, identity) {
   const rows = state.runs.map(row=>[`<a href="#runs/${row.id}">${esc(cases.get(row.case_id) || row.case_id)}</a>`, badge(row.status), esc(row.owner), esc(date(row.created_at))]);
   const result = state.evidence.find(row=>row.run_id===selected?.id);
   const active = selected && ['queued','running'].includes(selected.status);
+  const progress = selected?.progress;
+  const stepLine = progress && progress.total !== undefined
+    ? `<p data-testid="run-progress">已确认 ${progress.confirmed}/${progress.total} 步${progress.attempts>1?` · 第 ${progress.attempts} 次接手`:''}</p>`
+    : '';
   const detail = selected ? `<h2>${esc(cases.get(selected.case_id) || selected.case_id)}</h2>
     <p data-testid="run-status">${badge(selected.status)}</p>
+    ${stepLine}
     <dl><dt>启动时间</dt><dd>${esc(date(selected.started_at))}</dd><dt>完成时间</dt><dd>${esc(date(selected.finished_at))}</dd></dl>
     ${selected.error ? `<p class="error">${esc(selected.error)}</p>` : ''}
     ${active?'<p class="note">后台处理中，记录会自动刷新。</p>':''}

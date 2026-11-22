@@ -109,7 +109,12 @@ def _deferral(size, free, remaining, initial_budget):
     return '、'.join(reasons)
 
 
-def solve(payload, engine):
+def build_plan(payload):
+    """Deterministic plan for a snapshot: step order, sizes and the final report.
+
+    The plan is a pure function of the payload, so replaying a run from a confirmed
+    checkpoint reuses the same order, byte accounting and report digest.
+    """
     snapshot = read_snapshot(payload)
     log_weights = {
         node_id: math.log(node.weight) for node_id, node in snapshot.nodes.items() if node.weight > 0
@@ -161,7 +166,7 @@ def solve(payload, engine):
     ]
     deferred_count = len(changed) - len(manifest)
     moved_bytes = snapshot.budget - remaining
-    return {
+    report = {
         'summary': f'盘点 {snapshot.identity} 有 {len(changed)} 批归属变化，本轮可搬 {len(manifest)} 批共 '
                    f'{moved_bytes} 字节，待排 {deferred_count} 批。',
         'metrics': {
@@ -180,3 +185,27 @@ def solve(payload, engine):
             {'title': '节点物理占用', 'rows': node_rows},
         ],
     }
+    steps = [
+        {
+            'index': position,
+            'batch_id': row['批次编号'],
+            'source': row['源节点'],
+            'target': row['目标节点'],
+            'size': row['搬迁字节'],
+        }
+        for position, row in enumerate(manifest)
+    ]
+    return {
+        'snapshot_id': snapshot.identity,
+        'budget': snapshot.budget,
+        'steps': steps,
+        'report': report,
+    }
+
+
+def report(plan):
+    return plan['report']
+
+
+def solve(payload, engine=None):
+    return report(build_plan(payload))
